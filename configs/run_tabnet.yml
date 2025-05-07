@@ -1,0 +1,44 @@
+data_split:
+  train_size: 0.8
+  valid_size: 0.1
+  test_size: 0.1
+
+model_cfgs:
+  - name: TabNetClassifier
+    training_params:
+      batch_size: 128
+      max_epochs: 10000
+      patience: 1000
+
+save:
+  out_root: ./outputs
+
+
+# class TabNetClassifier(
+#     n_d: int = 8,
+#     n_a: int = 8,
+#     n_steps: int = 3,
+#     gamma: float = 1.3,
+#     cat_idxs: List[int] = list,
+#     cat_dims: List[int] = list,
+#     cat_emb_dim: int = 1,
+#     n_independent: int = 2,
+#     n_shared: int = 2,
+#     epsilon: float = 1e-15,
+#     momentum: float = 0.02,
+#     lambda_sparse: float = 0.001,
+#     seed: int = 0,
+#     clip_value: int = 1,
+#     verbose: int = 1,
+#     optimizer_fn: Any = torch.optim.Adam,
+#     optimizer_params: Dict = lambda : dict(lr=0.02),
+#     scheduler_fn: Any = None,
+#     scheduler_params: Dict = dict,
+#     mask_type: str = "sparsemax",
+#     input_dim: int = None,
+#     output_dim: int = None,
+#     device_name: str = "auto",
+#     n_shared_decoder: int = 1,
+#     n_indep_decoder: int = 1,
+#     grouped_features: List[List[int]] = list
+# )
