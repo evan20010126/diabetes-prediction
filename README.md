@@ -5,11 +5,20 @@ Build a predictive model to identify the likelihood of diabetes in patients base
 ## Datasets
 - [Pima Indians Diabetes Database](https://www.kaggle.com/datasets/uciml/pima-indians-diabetes-database)
 - [Frankfurt Hospital (Germany) Type 2 Diabetes Datase](https://www.kaggle.com/datasets/johndasilva/diabetes/data)
+> Install those files, and put them into './data'
+
+```
+E.g.
+data/
+| - .gitkeep
+| - Frankfurt_Hospital_diabetes.csv
+| - Pima_Indians_diabetes.csv
+```
 
 ## Environment
 ```bash
-# Install PyTorch with CUDA 11.8 support (Python 3.10.17)
-pip install pytorch-tabnet
+# Install needed packages
+pip install -r requirements.txt
 
 ## Install this project in editable mode (requires setup.py)
 pip install -e .
