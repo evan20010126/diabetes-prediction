@@ -27,6 +27,10 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
+## Run
+- Run PIMA dataset: `sh ./launch/run_pima.sh`
+- Run Frankfurt dataset:`sh ./launch/run_frankfurt.sh`
+
 ---
 
 ## 📁 資料夾與檔案說明

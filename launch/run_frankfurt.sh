@@ -1,0 +1,1 @@
+python scripts/run.py --dataset_path ./data/Frankfurt_Hospital_diabetes.csv --config ./configs/run_tabnet.yml
