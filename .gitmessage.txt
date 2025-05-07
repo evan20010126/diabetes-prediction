@@ -1,0 +1,26 @@
+<type>: <簡短描述>
+
+# 空一行寫詳細內容（可省略）
+
+# 請使用以下前綴類型，確保 commit 歷史清晰、可讀、可維護
+#
+# 常用前綴說明：
+# 
+# feat:     新增功能（例如新增模組、新的訓練流程）
+# fix:      修復 bug（修正錯誤邏輯或異常行為）
+# refactor: 重構程式（不影響功能，例如重整架構、抽出函式）
+# style:    語法風格修正（排版、命名、補型別、無功能變更）
+# test:     新增或修改測試程式
+# docs:     修改說明文件（README、註解等）
+# chore:    雜項更新（如 .gitignore、pre-commit、格式化工具）
+# build:    修改建構設定（如 requirements.txt, setup.py）
+# ci:       持續整合流程相關（如 GitHub Actions 設定）
+# perf:     效能優化（不影響邏輯，但效能更好）
+#
+# 範例：
+# feat: add Trainer class with training loop
+# fix: correct loss calculation logic
+# chore: add .gitkeep to keep empty folders tracked
+#
+# 詳細內容（可選填）：
+# - 可以在這裡補充說明做了什麼修改、影響範圍、為什麼要改
