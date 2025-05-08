@@ -18,7 +18,7 @@ data/
 ## Environment
 ```bash
 # Follow the template to commit
-git config commit.template .gitmessage
+git config commit.template .gitmessage.txt
 
 # Install needed packages
 pip install -r requirements.txt
