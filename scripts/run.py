@@ -14,12 +14,15 @@ import numpy as np
 import pandas as pd
 from pytorch_tabnet.tab_model import TabNetClassifier
 from sklearn.metrics import accuracy_score, roc_auc_score, confusion_matrix
+from sklearn.decomposition import PCA
 
 from cores.data_preprocessing import impute_missing_values
 from utils.common import log_args
 from utils.logger_util import CustomLogger as logger
 from utils.data_utils import split_data, get_features_and_target
 from utils.config import SEED
+
+from sklearn.utils.class_weight import compute_sample_weight
 
 # ---------------------- Code ----------------------
 
@@ -30,17 +33,17 @@ np.random.seed(SEED)
 
 def main():
 
-    # 0. Configure
+    # Configure
     args, args_dict = create_args()
     logger.configure(args.save.out_root)
     log_args(args_dict)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # 1. Data processing
+    # Data processing
     data = pd.read_csv(args.dataset_path)
     data = impute_missing_values(data=data)
 
-    # 2. Split data
+    # Split data
     df_train, df_valid, df_test = split_data(data, **args_dict['data_split'])
     X_train, y_train = get_features_and_target(df_train)
     X_valid, y_valid = get_features_and_target(df_valid)
@@ -52,7 +55,22 @@ def main():
     logger.debug("Train label distribution: %s",
                  np.unique(y_train, return_counts=True))
 
-    # 3. Training
+    if 'pca_cfg' in args_dict:
+        pca_cfg = args.pca_cfg
+        logger.info(
+            f"Applying PCA with n_components={pca_cfg['n_components']}...")
+        pca = PCA(n_components=pca_cfg['n_components'], random_state=SEED)
+        X_train = pca.fit_transform(X_train)
+        X_valid = pca.transform(X_valid)
+        X_test = pca.transform(X_test)
+
+        logger.debug(
+            f"After PCA, Train shape: {X_train.shape}; Valid shape: {X_valid.shape}; Test shape: {X_test.shape}"
+        )
+
+    sample_weights = compute_sample_weight(class_weight='balanced', y=y_train)
+
+    # Training
     for cfg in args.model_cfgs:
         if cfg['name'] == 'TabNetClassifier':
             logger.info(f"Training {cfg['name']}...")
@@ -60,14 +78,15 @@ def main():
 
             clf.fit(X_train,
                     y_train,
+                    weights=sample_weights,
                     eval_set=[(X_valid, y_valid)],
                     **cfg['training_params'])
 
-            # 4. Testing
+            # Testing
             preds = clf.predict(X_test)
             probs = clf.predict_proba(X_test)[:, 1]
 
-            # 5. Evaluataion
+            # Evaluataion
             acc = accuracy_score(y_test, preds)
             auc = roc_auc_score(y_test, probs)
             cm = confusion_matrix(y_test, preds)
