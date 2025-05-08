@@ -15,7 +15,7 @@ import pandas as pd
 from pytorch_tabnet.tab_model import TabNetClassifier
 from sklearn.metrics import accuracy_score, roc_auc_score, confusion_matrix
 
-from cores.data_preprocessing import data_preprocessing
+from cores.data_preprocessing import impute_missing_values
 from utils.common import log_args
 from utils.logger_util import CustomLogger as logger
 from utils.data_utils import split_data, get_features_and_target
@@ -38,7 +38,7 @@ def main():
 
     # 1. Data processing
     data = pd.read_csv(args.dataset_path)
-    data = data_preprocessing(data=data)
+    data = impute_missing_values(data=data)
 
     # 2. Split data
     df_train, df_valid, df_test = split_data(data, **args_dict['data_split'])

@@ -1,0 +1,1 @@
+python scripts/run_withGridSearchCV.py --config configs/run_gridSearchCV.yml --dataset_path ./data/Pima_Indians_diabetes.csv

@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def data_preprocessing(data):
+def impute_missing_values(data):
 
     fix_cols = ["Glucose", "BloodPressure", "SkinThickness", "Insulin", "BMI"]
     for col in fix_cols:
