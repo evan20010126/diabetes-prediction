@@ -1,0 +1,25 @@
+data_split:
+  train_size: 0.9
+  n_folds: 9
+  test_size: 0.1
+
+pca_cfg:
+  param_grid:
+    n_components: [4, 6, 8]  # Number of PCA components
+
+model_cfgs:
+  - name: TabNetClassifier
+    param_grid:
+      n_d: [8, 16] # = n_a
+      n_steps: [3, 5]
+
+  - name: RandomForestClassifier
+    param_grid:
+      n_estimators: [100, 200]
+      max_depth: [10, 20]
+      min_samples_split: [2, 5]
+      min_samples_leaf: [1, 2]
+      max_features: ["sqrt", "log2"]
+
+save:
+  out_root: ./outputs/GridSearchCV
