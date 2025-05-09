@@ -26,6 +26,7 @@ def impute_missing_values(data):
         pd.DataFrame: Dataset with imputed values.
     """
 
+    # All of attributes: [Pregnancies, Glucose, BloodPressure, SkinThickness, Insulin, BMI, DiabetesPedigreeFunction, Age, Outcome]
     fix_cols = ["Glucose", "BloodPressure", "SkinThickness", "Insulin", "BMI"]
 
     for col in fix_cols:
@@ -34,9 +35,16 @@ def impute_missing_values(data):
 
         # Remove outliers temporarily and calculate median
         clean_series = remove_outliers_iqr(data[col].dropna())
-        median = clean_series.median()
+
+        skew = clean_series.skew()
+        if abs(skew) >= 0.5:
+            # If skewness is high, use the median of the original series
+            fill_value = data[col].median()
+        else:
+            # If skewness is low, use the mean of the cleaned series
+            fill_value = clean_series.mean()
 
         # Fill missing values with the calculated median
-        data[col] = data[col].fillna(median)
+        data[col] = data[col].fillna(fill_value)
 
     return data
