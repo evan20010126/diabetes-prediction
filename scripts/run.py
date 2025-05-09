@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 from pytorch_tabnet.tab_model import TabNetClassifier
 from sklearn.metrics import accuracy_score, roc_auc_score, confusion_matrix
+from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 
 from cores.data_preprocessing import impute_missing_values
@@ -56,6 +57,13 @@ def main():
                  np.unique(y_train, return_counts=True))
 
     if 'pca_cfg' in args_dict:
+
+        # Standardize data before PCA
+        scaler = StandardScaler()
+        X_train = scaler.fit_transform(X_train)
+        X_valid = scaler.transform(X_valid)
+        X_test = scaler.transform(X_test)
+
         pca_cfg = args.pca_cfg
         logger.info(
             f"Applying PCA with n_components={pca_cfg['n_components']}...")
