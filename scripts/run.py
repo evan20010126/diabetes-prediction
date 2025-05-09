@@ -2,7 +2,9 @@
 
 from pathlib import Path
 from matplotlib import pyplot as plt
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import ExtraTreesClassifier
+from sklearn.neighbors import KNeighborsClassifier
+# from xgboost import XGBClassifier
 
 import os
 import argparse
@@ -24,6 +26,10 @@ from utils.data_utils import split_data, get_features_and_target
 from utils.config import SEED
 
 from sklearn.utils.class_weight import compute_sample_weight
+
+# from models.tabnet import TabNetPretrainedWrapper
+from models.ensemble import SoftVotingEnsemble
+from cores.custom_tuning import grid_search_soft_ensemble
 
 # ---------------------- Code ----------------------
 
@@ -103,6 +109,52 @@ def main():
             logger.info(
                 f"Accuracy: {round(acc, 4)}; ROC AUC: {round(auc, 4)}\n Confusion Matrix:\n{cm}"
             )
+
+            # exit()
+            # Ensemble
+            model_dict = {
+                'knn': KNeighborsClassifier(),
+                'etc': ExtraTreesClassifier(),
+                # 'xgb':
+                # XGBClassifier(use_label_encoder=False,
+                #   eval_metric='logloss',
+                #   random_state=42)
+            }
+
+            param_grid = {
+                'knn__n_neighbors': [3, 5, 7, 9, 11, 13, 15, 17, 19, 21],
+                'knn__weights': ['uniform', 'distance'],
+                'etc__n_estimators': [100, 200],
+                'etc__max_depth': [None, 10],
+                # 'xgb__n_estimators': [100, 200],
+                # 'xgb__max_depth': [3, 6]
+            }
+
+            X_trainval = np.concatenate((X_train, X_valid), axis=0)
+            y_trainval = np.concatenate((y_train, y_valid), axis=0)
+
+            best_ensemble, _ = grid_search_soft_ensemble(
+                X=X_trainval,
+                y=y_trainval,
+                tabnet_model=clf,
+                model_dict=model_dict,
+                param_grid=param_grid,
+                n_splits=5,
+                scoring='accuracy'  # or 'roc_auc'
+            )
+
+            y_pred = best_ensemble.predict(X_test)
+            y_proba = best_ensemble.predict_proba(X_test)[:, 1]  # 若為二分類
+            acc = best_ensemble.score(X_test, y_test)
+            logger.info("Ensemble Accuracy:", acc)
+            logger.info("Ensemble ROC AUC:", roc_auc_score(y_test, y_proba))
+            logger.info("Ensemble Confusion Matrix:",
+                        confusion_matrix(y_test, y_pred))
+
+            # # for name, model in ensemble.estimators:
+            # # acc = accuracy_score(y_test, model.predict(X_test))
+            # # print(f"{name} Accuracy: {acc:.4f}")
+            # exit()
 
 
 def create_args():
