@@ -47,4 +47,26 @@ def impute_missing_values(data):
         # Fill missing values with the calculated median
         data[col] = data[col].fillna(fill_value)
 
+    data = add_combined_features(data)
+    return data
+
+
+def add_combined_features(data):
+
+    epsilon = 1e-5  # 防止除以0
+
+    # 計算新特徵（順序相反插入以保證最終順序正確）
+    data.insert(0, 'DiabetesRiskIndex',
+                (data['Glucose'] + data['BMI'] + data['Age']) / 3)
+    data.insert(0, 'Glucose_BMI_product', data['Glucose'] * data['BMI'])
+    data.insert(0, 'SkinThickness_BMI', data['SkinThickness'] * data['BMI'])
+    data.insert(0, 'Age_Pregnancies', data['Age'] / (data['Pregnancies'] + 1))
+    data.insert(0, 'Insulin_to_Glucose',
+                data['Insulin'] / (data['Glucose'] + epsilon))
+    data.insert(0, 'BMI_age_ratio', data['BMI'] / (data['Age'] + epsilon))
+
+    # data.insert(0, 'N1', data['Age'] * data['Glucose'])  # 第0欄插入 C 欄
+    # data.insert(0, 'N2', data['Age'] * data['Pregnancies'])  # 第1欄插入 D 欄
+    # data.insert(0, 'N3', data['Glucose'] * data['BloodPressure'])  # 第2欄插入 E 欄
+
     return data

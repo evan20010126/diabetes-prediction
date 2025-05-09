@@ -32,3 +32,25 @@ class TabNetSklearnWrapper(BaseEstimator, ClassifierMixin):
 
     def score(self, X, y):
         return accuracy_score(y, self.predict(X))
+
+
+class TabNetPretrainedWrapper(BaseEstimator, ClassifierMixin):
+
+    def __init__(self, no_value=0, pretrained_model=None):
+        pretrained_model = pretrained_model
+        self.no_value = no_value
+        _estimator_type = "classifier"
+        # self._estimator_type = "classifier"
+
+    def fit(self, X, y):
+        # 忽略再訓練，直接返回 self
+        return self
+
+    def predict(self, X):
+        return self.pretrained_model.predict(X)
+
+    def predict_proba(self, X):
+        return self.pretrained_model.predict_proba(X)
+
+    def score(self, X, y):
+        return accuracy_score(y, self.predict(X))
