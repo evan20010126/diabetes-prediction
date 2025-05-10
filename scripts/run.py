@@ -31,6 +31,7 @@ from sklearn.utils.class_weight import compute_sample_weight
 # from models.tabnet import TabNetPretrainedWrapper
 from models.ensemble import SoftVotingEnsemble
 from cores.custom_tuning import grid_search_soft_ensemble
+from imblearn.over_sampling import SMOTEENN
 
 # ---------------------- Code ----------------------
 
@@ -73,6 +74,8 @@ def main():
     df_test = add_combined_features(df_test)
 
     X_train, y_train = get_features_and_target(df_train)
+    smoteen = SMOTEENN(random_state=SEED)
+    X_train, y_train = smoteen.fit_resample(X_train, y_train)
     X_valid, y_valid = get_features_and_target(df_valid)
     X_test, y_test = get_features_and_target(df_test)
 
