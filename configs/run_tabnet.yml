@@ -1,17 +1,17 @@
 data_split:
-  train_size: 0.6
-  valid_size: 0.2
-  test_size: 0.2
+  train_size: 0.7
+  valid_size: 0.15
+  test_size: 0.15
 
 pca_cfg:
-  n_components: 2
+  n_components: 6
 
 model_cfgs:
   - name: TabNetClassifier
     training_params:
-      batch_size: 128
+      batch_size: 256
       max_epochs: 1000
-      patience: 50
+      patience: 100
 
 save:
   out_root: ./outputs/SingleConfig

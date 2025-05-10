@@ -54,11 +54,12 @@ def main():
     ]  # 只填補這些欄位
     ignore_cols = ["Outcome"]  # 排除 label 不作為解釋變數
 
-    data = impute_missing_values_with_MICE(data,
-                                           target_cols=target_cols,
-                                           ignore_cols=ignore_cols,
-                                           max_iter=1000,
-                                           seed=SEED)
+    data = impute_missing_values_with_MICE(
+        data,
+        target_cols=target_cols,
+        #    ignore_cols=ignore_cols,
+        max_iter=1000,
+        seed=SEED)
 
     # Split data
     df_train, df_valid, df_test = split_data(data, **args_dict['data_split'])
@@ -98,7 +99,7 @@ def main():
     for cfg in args.model_cfgs:
         if cfg['name'] == 'TabNetClassifier':
             logger.info(f"Training {cfg['name']}...")
-            clf = TabNetClassifier(device_name=device)
+            clf = TabNetClassifier(n_a=4, n_d=4, device_name=device)
 
             clf.fit(X_train,
                     y_train,
