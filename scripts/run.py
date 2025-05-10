@@ -29,7 +29,7 @@ from sklearn.utils.class_weight import compute_sample_weight
 
 # from models.tabnet import TabNetPretrainedWrapper
 from models.ensemble import SoftVotingEnsemble
-from cores.custom_tuning import grid_search_soft_ensemble
+from cores.custom_tuning import grid_search_ensemble
 
 # ---------------------- Code ----------------------
 
@@ -143,15 +143,15 @@ def main():
             X_trainval = np.concatenate((X_train, X_valid), axis=0)
             y_trainval = np.concatenate((y_train, y_valid), axis=0)
 
-            best_ensemble, _ = grid_search_soft_ensemble(
+            best_ensemble, _ = grid_search_ensemble(
                 X=X_trainval,
                 y=y_trainval,
                 tabnet_model=clf,
                 model_dict=model_dict,
                 param_grid=param_grid,
                 n_splits=5,
-                scoring='accuracy'  # or 'roc_auc'
-            )
+                scoring='accuracy',  # or 'roc_auc'
+                mode='hard')
 
             y_pred = best_ensemble.predict(X_test)
             y_proba = best_ensemble.predict_proba(X_test)[:, 1]  # 若為二分類

@@ -2,16 +2,17 @@ from sklearn.model_selection import ParameterGrid, StratifiedKFold
 from sklearn.base import clone
 from sklearn.metrics import accuracy_score, roc_auc_score
 import numpy as np
-from models.ensemble import SoftVotingEnsemble
+from models.ensemble import SoftVotingEnsemble, HardVotingEnsemble
 
 
-def grid_search_soft_ensemble(X,
-                              y,
-                              tabnet_model,
-                              model_dict,
-                              param_grid,
-                              n_splits=5,
-                              scoring='accuracy'):
+def grid_search_ensemble(X,
+                         y,
+                         tabnet_model,
+                         model_dict,
+                         param_grid,
+                         n_splits=5,
+                         scoring='accuracy',
+                         mode='soft'):
     """
     Parameters
     ----------
@@ -59,8 +60,12 @@ def grid_search_soft_ensemble(X,
                 trained_models.append((name, model))
 
             # 組合 ensemble
-            ensemble = SoftVotingEnsemble([('tabnet', tabnet_model)] +
-                                          trained_models)
+            if mode == 'soft':
+                ensemble = SoftVotingEnsemble([('tabnet', tabnet_model)] +
+                                              trained_models)
+            elif mode == 'hard':
+                ensemble = HardVotingEnsemble([('tabnet', tabnet_model)] +
+                                              trained_models)
 
             y_pred = ensemble.predict(X_valid)
             if scoring == 'accuracy':
@@ -97,8 +102,13 @@ def grid_search_soft_ensemble(X,
         final_models.append((name, model))
 
     # 組合最佳的 ensemble
-    best_ensemble = SoftVotingEnsemble([('tabnet', tabnet_model)] +
-                                       final_models)
+    if mode == 'soft':
+        best_ensemble = SoftVotingEnsemble([('tabnet', tabnet_model)] +
+                                           final_models,
+                                           weights=[0.5, 0.25, 0.25])
+    elif mode == 'hard':
+        best_ensemble = HardVotingEnsemble([('tabnet', tabnet_model)] +
+                                           final_models)
 
     return best_ensemble, {
         'best_params': best_result['params'],
