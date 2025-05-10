@@ -114,6 +114,49 @@ def impute_missing_values_with_MICE(data,
     return data_copy
 
 
+def impute_missing_values_wo_data_leak(train_data, val_data, test_data):
+    """
+    Impute missing values in the dataset by replacing zeros with NaN,
+    removing outliers temporarily, and filling missing values with the median.
+    
+    Specifically designed to avoid data leakage between train, validation, and test sets.
+
+    Args:
+        train_data (pd.DataFrame): Training dataset.
+        val_data (pd.DataFrame): Validation dataset.
+        test_data (pd.DataFrame): Testing dataset.
+    Returns:
+        tuple: Tuple containing the training, validation, and testing datasets with imputed values.
+    """
+
+    # All of attributes: [Pregnancies, Glucose, BloodPressure, SkinThickness, Insulin, BMI, DiabetesPedigreeFunction, Age, Outcome]
+    fix_cols = ["Glucose", "BloodPressure", "SkinThickness", "Insulin", "BMI"]
+
+    for col in fix_cols:
+        # Replace zeros with NaN
+        train_data[col] = train_data[col].replace(0, np.nan)
+        val_data[col] = val_data[col].replace(0, np.nan)
+        test_data[col] = test_data[col].replace(0, np.nan)
+
+        # Remove outliers temporarily and calculate median
+        clean_series = remove_outliers_iqr(train_data[col].dropna())
+
+        skew = clean_series.skew()
+        if abs(skew) >= 0.5:
+            # If skewness is high, use the median of the original series
+            fill_value = train_data[col].median()
+        else:
+            # If skewness is low, use the mean of the cleaned series
+            fill_value = clean_series.mean()
+
+        # Fill missing values with the calculated median
+        train_data[col] = train_data[col].fillna(fill_value)
+        val_data[col] = val_data[col].fillna(fill_value)
+        test_data[col] = test_data[col].fillna(fill_value)
+
+    return train_data, val_data, test_data
+
+
 def add_combined_features(data):
 
     epsilon = 1e-5  # 防止除以0
