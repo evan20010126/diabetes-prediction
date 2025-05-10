@@ -1,4 +1,10 @@
 import numpy as np
+from utils.config import SEED
+from utils.logger_util import CustomLogger as logger
+import pandas as pd
+
+from models.MICE import ScaledRegressor
+from sklearn.linear_model import LinearRegression
 
 
 def remove_outliers_iqr(series):
@@ -49,6 +55,63 @@ def impute_missing_values(data):
 
     data = add_combined_features(data)
     return data
+
+
+def impute_missing_values_with_MICE(data,
+                                    target_cols,
+                                    ignore_cols=None,
+                                    estimator=None,
+                                    max_iter=10,
+                                    seed=0):
+    """
+    Impute missing values only for target columns using MICE, but with all other columns as predictors.
+
+    Args:
+        data (pd.DataFrame): Input dataset.
+        target_cols (list): Columns to be imputed (i.e., only these will be updated).
+        ignore_cols (list): Columns to exclude from predictors (e.g., labels).
+        estimator (sklearn estimator): Regression model used by IterativeImputer.
+        max_iter (int): Number of MICE iterations.
+        seed (int): Random seed for reproducibility.
+
+    Returns:
+        pd.DataFrame: Data with target columns imputed.
+    """
+    from sklearn.experimental import enable_iterative_imputer
+    from sklearn.impute import IterativeImputer
+
+    logger.info("Imputing missing values with MICE...")
+
+    if estimator is None:
+        estimator = ScaledRegressor()
+
+    data_copy = data.copy()
+
+    # Define predictor columns (exclude ignore_cols)
+    feature_cols = data.columns.difference(ignore_cols if ignore_cols else [])
+
+    # Replace invalid 0s in target_cols with NaN
+    data_copy[target_cols] = data_copy[target_cols].replace(0, np.nan)
+
+    # Run imputer on full predictor set
+    imputer = IterativeImputer(estimator=estimator,
+                               max_iter=max_iter,
+                               initial_strategy='median',
+                               random_state=seed)
+    imputed_all = imputer.fit_transform(data_copy[feature_cols])
+
+    # Convert back to DataFrame
+    imputed_df = pd.DataFrame(imputed_all, columns=feature_cols)
+
+    # Replace only the target columns in original data
+    data_copy[target_cols] = imputed_df[target_cols]
+
+    data_copy = add_combined_features(data_copy)
+
+    # print(data)
+    # print(data_copy)
+    # exit(0)
+    return data_copy
 
 
 def add_combined_features(data):
