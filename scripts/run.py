@@ -19,7 +19,7 @@ from sklearn.metrics import accuracy_score, roc_auc_score, confusion_matrix
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 
-from cores.data_preprocessing import impute_missing_values
+from cores.data_preprocessing import impute_missing_values, impute_missing_values_with_MICE
 from utils.common import log_args
 from utils.logger_util import CustomLogger as logger
 from utils.data_utils import split_data, get_features_and_target
@@ -48,7 +48,17 @@ def main():
 
     # Data processing
     data = pd.read_csv(args.dataset_path)
-    data = impute_missing_values(data=data)
+    # data = impute_missing_values_with_MICE(data=data)
+    target_cols = [
+        "Glucose", "BloodPressure", "SkinThickness", "Insulin", "BMI"
+    ]  # 只填補這些欄位
+    ignore_cols = ["Outcome"]  # 排除 label 不作為解釋變數
+
+    data = impute_missing_values_with_MICE(data,
+                                           target_cols=target_cols,
+                                           ignore_cols=ignore_cols,
+                                           max_iter=1000,
+                                           seed=SEED)
 
     # Split data
     df_train, df_valid, df_test = split_data(data, **args_dict['data_split'])
