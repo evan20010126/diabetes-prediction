@@ -32,6 +32,8 @@ from sklearn.utils.class_weight import compute_sample_weight
 from models.ensemble import SoftVotingEnsemble
 from cores.custom_tuning import grid_search_soft_ensemble
 from imblearn.combine import SMOTEENN
+import seaborn as sns
+from utils.importance_analyzation import save_eigenvector_matrix, compute_importance, save_importance, compute_eigenvector_matrix_with_weighted
 
 # ---------------------- Code ----------------------
 
@@ -119,6 +121,18 @@ def main():
             f"After PCA, Train shape: {X_train.shape}; Valid shape: {X_valid.shape}; Test shape: {X_test.shape}"
         )
 
+        # Importance analysis
+        eigenvector_matrix = pca.components_.T  # shape: (n_features, n_components)
+        importance = compute_importance(eigenvector_matrix=eigenvector_matrix)
+        save_eigenvector_matrix(eigenvector_matrix=eigenvector_matrix,
+                                feature_names_before_PCA=df_train.columns[:-1],
+                                out_root=args.save.out_root,
+                                title="PCA_Eigenvector_Matrix")
+        save_importance(importance=importance,
+                        feature_names=df_train.columns[:-1],
+                        out_root=args.save.out_root,
+                        title="PCA_Feature_Importance")
+
     sample_weights = compute_sample_weight(class_weight='balanced', y=y_train)
 
     # Training
@@ -147,7 +161,21 @@ def main():
                 f"Accuracy: {round(acc, 4)}; ROC AUC: {round(auc, 4)}\n Confusion Matrix:\n{cm}"
             )
 
-            # exit()
+            weighted_eigenvector_matrix = compute_eigenvector_matrix_with_weighted(
+                eigenvector_matrix, clf.feature_importances_)
+            importance = compute_importance(
+                eigenvector_matrix=weighted_eigenvector_matrix)
+            save_importance(importance=importance,
+                            feature_names=df_train.columns[:-1],
+                            out_root=args.save.out_root,
+                            title="Weighted_PCA_Feature_Importance")
+            # Save eigenvector matrix
+            save_eigenvector_matrix(
+                eigenvector_matrix=weighted_eigenvector_matrix,
+                feature_names_before_PCA=df_train.columns[:-1],
+                out_root=args.save.out_root,
+                title="Weighted_PCA_Eigenvector_Matrix")
+
             # Ensemble
             model_dict = {
                 'knn': KNeighborsClassifier(),
