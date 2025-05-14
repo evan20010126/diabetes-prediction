@@ -19,7 +19,7 @@ from sklearn.metrics import accuracy_score, roc_auc_score, confusion_matrix
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 
-from cores.data_preprocessing import impute_missing_values, impute_missing_values_with_MICE
+from cores.data_preprocessing import impute_missing_values, impute_missing_values_with_MICE, add_combined_features
 from utils.common import log_args
 from utils.logger_util import CustomLogger as logger
 from utils.data_utils import split_data, get_features_and_target
@@ -54,15 +54,28 @@ def main():
     ]  # 只填補這些欄位
     ignore_cols = ["Outcome"]  # 排除 label 不作為解釋變數
 
-    data = impute_missing_values_with_MICE(
-        data,
-        target_cols=target_cols,
-        #    ignore_cols=ignore_cols,
-        max_iter=1000,
-        seed=SEED)
+    data = impute_missing_values_with_MICE(data,
+                                           target_cols=target_cols,
+                                           ignore_cols=ignore_cols,
+                                           max_iter=1000,
+                                           seed=SEED)
+
+    # SMOTEEN, and merge X_data and y_data back into a DataFrame to fit the subsequent function
+    X_data, y_data = get_features_and_target(data)
+    smoteen = SMOTEENN(random_state=SEED)
+    X_data, y_data = smoteen.fit_resample(X_data, y_data)
+    data = pd.DataFrame(X_data, columns=data.columns[:-1])
+    data['Outcome'] = y_data
 
     # Split data
     df_train, df_valid, df_test = split_data(data, **args_dict['data_split'])
+
+    # df_test = pd.read_csv("data/Frankfurt_Hospital_diabetes.csv")
+
+    df_train = add_combined_features(df_train)
+    df_valid = add_combined_features(df_valid)
+    df_test = add_combined_features(df_test)
+
     X_train, y_train = get_features_and_target(df_train)
     X_valid, y_valid = get_features_and_target(df_valid)
     X_test, y_test = get_features_and_target(df_test)
