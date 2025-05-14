@@ -12,7 +12,8 @@ def grid_search_ensemble(X,
                          param_grid,
                          n_splits=5,
                          scoring='accuracy',
-                         mode='soft'):
+                         mode='soft',
+                         weights=[1.0, 1.0, 1.0]):
     """
     Parameters
     ----------
@@ -105,7 +106,7 @@ def grid_search_ensemble(X,
     if mode == 'soft':
         best_ensemble = SoftVotingEnsemble([('tabnet', tabnet_model)] +
                                            final_models,
-                                           weights=[0.5, 0.25, 0.25])
+                                           weights=weights)
     elif mode == 'hard':
         best_ensemble = HardVotingEnsemble([('tabnet', tabnet_model)] +
                                            final_models)
