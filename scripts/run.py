@@ -30,6 +30,7 @@ from sklearn.utils.class_weight import compute_sample_weight
 # from models.tabnet import TabNetPretrainedWrapper
 from models.ensemble import SoftVotingEnsemble
 from cores.custom_tuning import grid_search_ensemble
+from imblearn.combine import SMOTEENN
 
 # ---------------------- Code ----------------------
 
