@@ -1,1 +1,0 @@
-python scripts/run.py --dataset_path ./data/Pima_Indians_diabetes.csv --config ./configs/run_tabnet.yml

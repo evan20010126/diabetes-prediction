@@ -19,7 +19,7 @@ from sklearn.metrics import accuracy_score, roc_auc_score, confusion_matrix
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 
-from cores.data_preprocessing import impute_missing_values, impute_missing_values_wo_data_leak, add_combined_features, impute_missing_values_with_MICE, impute_missing_values_with_MICE_wo_data_leak
+from cores.data_preprocessing import impute_missing_values_wo_data_leak, add_combined_features, impute_missing_values_with_MICE_wo_data_leak
 from utils.common import log_args
 from utils.logger_util import CustomLogger as logger
 from utils.data_utils import split_data, get_features_and_target
@@ -28,11 +28,9 @@ from utils.config import SEED
 from sklearn.utils.class_weight import compute_sample_weight
 
 # from models.tabnet import TabNetPretrainedWrapper
-from models.ensemble import SoftVotingEnsemble
 from imblearn.combine import SMOTEENN
 from utils.importance_analyzation import save_eigenvector_matrix, compute_importance, save_importance, compute_eigenvector_matrix_with_weighted
 from cores.custom_tuning import grid_search_ensemble
-from imblearn.combine import SMOTEENN
 
 # ---------------------- Code ----------------------
 
@@ -51,26 +49,6 @@ def main():
 
     # Data processing
     data = pd.read_csv(args.dataset_path)
-    """
-    # data = impute_missing_values_with_MICE(data=data)
-    target_cols = [
-        "Glucose", "BloodPressure", "SkinThickness", "Insulin", "BMI"
-    ]  # 只填補這些欄位
-    ignore_cols = ["Outcome"]  # 排除 label 不作為解釋變數
-
-    data = impute_missing_values_with_MICE(data,
-                                           target_cols=target_cols,
-                                           ignore_cols=ignore_cols,
-                                           max_iter=1000,
-                                           seed=SEED)
-    """
-
-    # SMOTEEN, and merge X_data and y_data back into a DataFrame to fit the subsequent function
-    X_data, y_data = get_features_and_target(data)
-    smoteen = SMOTEENN(random_state=SEED)
-    X_data, y_data = smoteen.fit_resample(X_data, y_data)
-    data = pd.DataFrame(X_data, columns=data.columns[:-1])
-    data['Outcome'] = y_data
 
     # Split data
     df_train, df_valid, df_test = split_data(data, **args_dict['data_split'])
@@ -144,7 +122,7 @@ def main():
     for cfg in args.model_cfgs:
         if cfg['name'] == 'TabNetClassifier':
             logger.info(f"Training {cfg['name']}...")
-            clf = TabNetClassifier(n_a=4, n_d=4, device_name=device)
+            clf = TabNetClassifier(device_name=device)
 
             clf.fit(X_train,
                     y_train,
@@ -211,7 +189,7 @@ def main():
                 param_grid=param_grid,
                 n_splits=5,
                 scoring='accuracy',  # or 'roc_auc'
-                mode='hard')
+                mode='soft')
 
             y_pred = best_ensemble.predict(X_test)
             y_proba = best_ensemble.predict_proba(X_test)[:, 1]  # 若為二分類
