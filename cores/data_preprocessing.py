@@ -109,6 +109,112 @@ def impute_missing_values_with_MICE(data,
     return data_copy
 
 
+def impute_missing_values_with_MICE_wo_data_leak(train_data,
+                                                 val_data,
+                                                 test_data,
+                                                 target_cols,
+                                                 ignore_cols=None,
+                                                 max_iter=10,
+                                                 seed=0):
+    """
+    Impute missing values in the dataset by replacing zeros with NaN,
+    removing outliers temporarily, and filling missing values with the median.
+    
+    Specifically designed to avoid data leakage between train, validation, and test sets.
+
+    Args:
+        train_data (pd.DataFrame): Training dataset.
+        val_data (pd.DataFrame): Validation dataset.
+        test_data (pd.DataFrame): Testing dataset.
+    Returns:
+        tuple: Tuple containing the training, validation, and testing datasets with imputed values.
+    """
+
+    from sklearn.experimental import enable_iterative_imputer
+    from sklearn.impute import IterativeImputer
+
+    logger.info("Imputing missing values with MICE...")
+    estimator = ScaledRegressor()
+
+    # Define predictor columns (exclude ignore_cols)
+    feature_cols = train_data.columns.difference(
+        ignore_cols if ignore_cols else [])
+
+    # Replace invalid 0s in target_cols with NaN
+    train_data[target_cols] = train_data[target_cols].replace(0, np.nan)
+    val_data[target_cols] = val_data[target_cols].replace(0, np.nan)
+    test_data[target_cols] = test_data[target_cols].replace(0, np.nan)
+    # Run imputer on full predictor set
+    imputer = IterativeImputer(estimator=estimator,
+                               max_iter=max_iter,
+                               initial_strategy='median',
+                               random_state=seed)
+    imputer.fit(train_data[feature_cols])
+    imputed_train = imputer.transform(train_data[feature_cols])
+    imputed_val = imputer.transform(val_data[feature_cols])
+    imputed_test = imputer.transform(test_data[feature_cols])
+
+    # Convert back to DataFrame
+    imputed_train = pd.DataFrame(imputed_train,
+                                 columns=feature_cols,
+                                 index=train_data.index)
+    imputed_val = pd.DataFrame(imputed_val,
+                               columns=feature_cols,
+                               index=val_data.index)
+    imputed_test = pd.DataFrame(imputed_test,
+                                columns=feature_cols,
+                                index=test_data.index)
+    # Replace only the target columns in original data
+    train_data[target_cols] = imputed_train[target_cols]
+    val_data[target_cols] = imputed_val[target_cols]
+    test_data[target_cols] = imputed_test[target_cols]
+
+    return train_data, val_data, test_data
+
+
+def impute_missing_values_wo_data_leak(train_data, val_data, test_data):
+    """
+    Impute missing values in the dataset by replacing zeros with NaN,
+    removing outliers temporarily, and filling missing values with the median.
+    
+    Specifically designed to avoid data leakage between train, validation, and test sets.
+
+    Args:
+        train_data (pd.DataFrame): Training dataset.
+        val_data (pd.DataFrame): Validation dataset.
+        test_data (pd.DataFrame): Testing dataset.
+    Returns:
+        tuple: Tuple containing the training, validation, and testing datasets with imputed values.
+    """
+
+    # All of attributes: [Pregnancies, Glucose, BloodPressure, SkinThickness, Insulin, BMI, DiabetesPedigreeFunction, Age, Outcome]
+    fix_cols = ["Glucose", "BloodPressure", "SkinThickness", "Insulin", "BMI"]
+
+    for col in fix_cols:
+        # Replace zeros with NaN
+        train_data[col] = train_data[col].replace(0, np.nan)
+        val_data[col] = val_data[col].replace(0, np.nan)
+        test_data[col] = test_data[col].replace(0, np.nan)
+
+        # Remove outliers temporarily and calculate median
+        clean_series = remove_outliers_iqr(train_data[col].dropna())
+
+        skew = clean_series.skew()
+        if abs(skew) >= 0.5:
+            # If skewness is high, use the median of the original series
+            fill_value = train_data[col].median()
+        else:
+            # If skewness is low, use the mean of the cleaned series
+            fill_value = clean_series.mean()
+
+        # Fill missing values with the calculated median
+        train_data[col] = train_data[col].fillna(fill_value)
+        val_data[col] = val_data[col].fillna(fill_value)
+        test_data[col] = test_data[col].fillna(fill_value)
+
+    return train_data, val_data, test_data
+
+
 def add_combined_features(data):
 
     epsilon = 1e-5  # 防止除以0
