@@ -1,10 +1,10 @@
 data_split:
-  train_size: 0.6
-  valid_size: 0.2
-  test_size: 0.2
+  train_size: 0.7
+  valid_size: 0.15
+  test_size: 0.15
 
 pca_cfg:
-  n_components: 2
+  n_components: 12
 
 model_cfgs:
   - name: TabNetClassifier

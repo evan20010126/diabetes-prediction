@@ -19,7 +19,8 @@ from sklearn.metrics import accuracy_score, roc_auc_score, confusion_matrix
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 
-from cores.data_preprocessing import impute_missing_values, impute_missing_values_with_MICE
+from cores.data_preprocessing import impute_missing_values, impute_missing_values_wo_data_leak, add_combined_features, impute_missing_values_with_MICE, impute_missing_values_with_MICE_wo_data_leak
+
 from utils.common import log_args
 from utils.logger_util import CustomLogger as logger
 from utils.data_utils import split_data, get_features_and_target
@@ -29,6 +30,8 @@ from sklearn.utils.class_weight import compute_sample_weight
 
 # from models.tabnet import TabNetPretrainedWrapper
 from models.ensemble import SoftVotingEnsemble
+from imblearn.combine import SMOTEENN
+from utils.importance_analyzation import save_eigenvector_matrix, compute_importance, save_importance, compute_eigenvector_matrix_with_weighted
 from cores.custom_tuning import grid_search_ensemble
 
 # ---------------------- Code ----------------------
@@ -48,6 +51,7 @@ def main():
 
     # Data processing
     data = pd.read_csv(args.dataset_path)
+    """
     # data = impute_missing_values_with_MICE(data=data)
     target_cols = [
         "Glucose", "BloodPressure", "SkinThickness", "Insulin", "BMI"
@@ -59,10 +63,34 @@ def main():
                                            ignore_cols=ignore_cols,
                                            max_iter=1000,
                                            seed=SEED)
+    """
 
     # Split data
     df_train, df_valid, df_test = split_data(data, **args_dict['data_split'])
+
+    # df_test = pd.read_csv("data/Frankfurt_Hospital_diabetes.csv")
+    # df_train, df_valid, df_test = impute_missing_values_wo_data_leak(df_train, df_valid, df_test)
+    fix_cols = ["Glucose", "BloodPressure", "SkinThickness", "Insulin", "BMI"]
+
+    df_train, df_valid, df_test = impute_missing_values_with_MICE_wo_data_leak(
+        df_train,
+        df_valid,
+        df_test,
+        target_cols=fix_cols,
+        ignore_cols=['Outcome'],
+        max_iter=1000,
+        seed=SEED)
+
+    df_train = add_combined_features(df_train)
+    df_valid = add_combined_features(df_valid)
+    df_test = add_combined_features(df_test)
+    # Check nan
+
     X_train, y_train = get_features_and_target(df_train)
+
+    smoteen = SMOTEENN(random_state=SEED)
+    X_train, y_train = smoteen.fit_resample(X_train, y_train)
+
     X_valid, y_valid = get_features_and_target(df_valid)
     X_test, y_test = get_features_and_target(df_test)
 
@@ -92,6 +120,18 @@ def main():
             f"After PCA, Train shape: {X_train.shape}; Valid shape: {X_valid.shape}; Test shape: {X_test.shape}"
         )
 
+        # Importance analysis
+        eigenvector_matrix = pca.components_.T  # shape: (n_features, n_components)
+        importance = compute_importance(eigenvector_matrix=eigenvector_matrix)
+        save_eigenvector_matrix(eigenvector_matrix=eigenvector_matrix,
+                                feature_names_before_PCA=df_train.columns[:-1],
+                                out_root=args.save.out_root,
+                                title="PCA_Eigenvector_Matrix")
+        save_importance(importance=importance,
+                        feature_names=df_train.columns[:-1],
+                        out_root=args.save.out_root,
+                        title="PCA_Feature_Importance")
+
     sample_weights = compute_sample_weight(class_weight='balanced', y=y_train)
 
     # Training
@@ -120,7 +160,21 @@ def main():
                 f"Accuracy: {round(acc, 4)}; ROC AUC: {round(auc, 4)}\n Confusion Matrix:\n{cm}"
             )
 
-            # exit()
+            weighted_eigenvector_matrix = compute_eigenvector_matrix_with_weighted(
+                eigenvector_matrix, clf.feature_importances_)
+            importance = compute_importance(
+                eigenvector_matrix=weighted_eigenvector_matrix)
+            save_importance(importance=importance,
+                            feature_names=df_train.columns[:-1],
+                            out_root=args.save.out_root,
+                            title="Weighted_PCA_Feature_Importance")
+            # Save eigenvector matrix
+            save_eigenvector_matrix(
+                eigenvector_matrix=weighted_eigenvector_matrix,
+                feature_names_before_PCA=df_train.columns[:-1],
+                out_root=args.save.out_root,
+                title="Weighted_PCA_Eigenvector_Matrix")
+
             # Ensemble
             model_dict = {
                 'knn': KNeighborsClassifier(),
