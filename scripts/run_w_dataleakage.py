@@ -18,7 +18,7 @@ from sklearn.metrics import accuracy_score, roc_auc_score, confusion_matrix
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 
-from cores.data_preprocessing import impute_missing_values, impute_missing_values_with_MICE
+from cores.data_preprocessing import impute_missing_values, impute_missing_values_with_MICE, add_combined_features
 from utils.common import log_args
 from utils.logger_util import CustomLogger as logger
 from utils.data_utils import split_data, get_features_and_target
@@ -67,6 +67,11 @@ def main():
 
     # Split data
     df_train, df_valid, df_test = split_data(data, **args_dict['data_split'])
+
+    df_train = add_combined_features(df_train)
+    df_valid = add_combined_features(df_valid)
+    df_test = add_combined_features(df_test)
+
     X_train, y_train = get_features_and_target(df_train)
     X_valid, y_valid = get_features_and_target(df_valid)
     X_test, y_test = get_features_and_target(df_test)
