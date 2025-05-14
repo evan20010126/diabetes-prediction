@@ -9,9 +9,9 @@ pca_cfg:
 model_cfgs:
   - name: TabNetClassifier
     training_params:
-      batch_size: 128
+      batch_size: 256
       max_epochs: 1000
-      patience: 50
+      patience: 100
 
 save:
   out_root: ./outputs/SingleConfig

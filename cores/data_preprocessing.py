@@ -106,11 +106,6 @@ def impute_missing_values_with_MICE(data,
     # Replace only the target columns in original data
     data_copy[target_cols] = imputed_df[target_cols]
 
-    data_copy = add_combined_features(data_copy)
-
-    # print(data)
-    # print(data_copy)
-    # exit(0)
     return data_copy
 
 
