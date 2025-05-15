@@ -28,7 +28,16 @@ pip install -e .
 ```
 
 ## Run
-- Run PIMA dataset: `sh ./launch/run_pima.sh`
+- Run PIMA dataset:
+1. Run non-data-leakage version 
+    ```sh
+      sh ./launch/run_pima_non_dataleakage.sh
+    ```
+2. Run data-leakage version 
+    ```sh
+      sh ./launch/run_pima_dataleakage.sh
+    ```
+
 - Run Frankfurt dataset:`sh ./launch/run_frankfurt.sh`
 
 ---
