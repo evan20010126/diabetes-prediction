@@ -1,11 +1,4 @@
 # ---------------------- Imports ----------------------
-
-from pathlib import Path
-from matplotlib import pyplot as plt
-from sklearn.ensemble import ExtraTreesClassifier
-from sklearn.neighbors import KNeighborsClassifier
-# from xgboost import XGBClassifier
-
 import argparse
 from omegaconf import OmegaConf
 from datetime import datetime
@@ -13,8 +6,7 @@ from datetime import datetime
 import torch
 import numpy as np
 import pandas as pd
-from pytorch_tabnet.tab_model import TabNetClassifier
-from sklearn.metrics import accuracy_score, roc_auc_score, confusion_matrix
+
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 
@@ -26,10 +18,12 @@ from utils.config import SEED
 
 from sklearn.utils.class_weight import compute_sample_weight
 
-# from models.tabnet import TabNetPretrainedWrapper
-from cores.custom_tuning import grid_search_ensemble
 from imblearn.combine import SMOTEENN
 
+from cores.train_DL import train_DLmodels
+from cores.tune_ensemble import tune_ensemble
+
+from utils.importance_analyzation import save_eigenvector_matrix, compute_importance, save_importance, compute_eigenvector_matrix_with_weighted
 # ---------------------- Code ----------------------
 
 # Set the random seed for reproducibility
@@ -47,30 +41,39 @@ def main():
 
     # Data processing
     data = pd.read_csv(args.dataset_path)
-    # data = impute_missing_values_with_MICE(data=data)
-    target_cols = [
-        "Glucose", "BloodPressure", "SkinThickness", "Insulin", "BMI"
-    ]  # 只填補這些欄位
-    ignore_cols = ["Outcome"]  # 排除 label 不作為解釋變數
 
-    data = impute_missing_values_with_MICE(data,
-                                           target_cols=target_cols,
-                                           ignore_cols=ignore_cols,
-                                           max_iter=1000,
-                                           seed=SEED)
+    # Impute missing values
+    if args.imputation.strategy == 'MICE':
+        data = impute_missing_values_with_MICE(
+            data,
+            estimator=None,
+            target_cols=list(args.imputation.target_cols),
+            ignore_cols=list(args.imputation.ignore_cols),
+            max_iter=args.imputation.max_iter,
+            seed=SEED)
+    elif args.imputation.strategy == 'dynamic_imputer':
+        data = impute_missing_values(data)
 
-    smoteenn = SMOTEENN(random_state=SEED)
-    X_data, y_data = get_features_and_target(data)
-    X_data, y_data = smoteenn.fit_resample(X_data, y_data)
-    data = pd.DataFrame(X_data, columns=data.columns[:-1])
-    data['Outcome'] = y_data
+    # Sampling
+    if args.sampling == "SMOTEENN":
+        X_data, y_data = get_features_and_target(data)
+        smoteenn = SMOTEENN(random_state=SEED)
+        X_data, y_data = smoteenn.fit_resample(X_data, y_data)
+        data = pd.DataFrame(X_data, columns=data.columns[:-1])
+        data['Outcome'] = y_data
 
     # Split data
     df_train, df_valid, df_test = split_data(data, **args_dict['data_split'])
 
-    df_train = add_combined_features(df_train)
-    df_valid = add_combined_features(df_valid)
-    df_test = add_combined_features(df_test)
+    # Override test dataset if specified
+    if args.test_dataset != "":
+        df_test = pd.read_csv(args.test_dataset)  # override
+
+    # Feature generation
+    if args.feature_generation == 'combined_features':
+        df_train = add_combined_features(df_train)
+        df_valid = add_combined_features(df_valid)
+        df_test = add_combined_features(df_test)
 
     X_train, y_train = get_features_and_target(df_train)
     X_valid, y_valid = get_features_and_target(df_valid)
@@ -82,7 +85,8 @@ def main():
     logger.debug("Train label distribution: %s",
                  np.unique(y_train, return_counts=True))
 
-    if 'pca_cfg' in args_dict:
+    # Feature compression
+    if args.feature_compression.strategy == 'PCA':
 
         # Standardize data before PCA
         scaler = StandardScaler()
@@ -90,10 +94,11 @@ def main():
         X_valid = scaler.transform(X_valid)
         X_test = scaler.transform(X_test)
 
-        pca_cfg = args.pca_cfg
+        n_components = args.feature_compression.n_components
         logger.info(
-            f"Applying PCA with n_components={pca_cfg['n_components']}...")
-        pca = PCA(n_components=pca_cfg['n_components'], random_state=SEED)
+            f"Applying StandarScaler & PCA with n_components={n_components}..."
+        )
+        pca = PCA(n_components=n_components, random_state=SEED)
         X_train = pca.fit_transform(X_train)
         X_valid = pca.transform(X_valid)
         X_test = pca.transform(X_test)
@@ -102,79 +107,65 @@ def main():
             f"After PCA, Train shape: {X_train.shape}; Valid shape: {X_valid.shape}; Test shape: {X_test.shape}"
         )
 
-    sample_weights = compute_sample_weight(class_weight='balanced', y=y_train)
+        # Importance analysis
+        eigenvector_matrix = pca.components_.T  # shape: (n_features, n_components)
+        importance = compute_importance(eigenvector_matrix=eigenvector_matrix)
+        save_eigenvector_matrix(eigenvector_matrix=eigenvector_matrix,
+                                feature_names_before_PCA=df_train.columns[:-1],
+                                out_root=args.save.out_root,
+                                title="PCA_Eigenvector_Matrix")
+        save_importance(importance=importance,
+                        feature_names=df_train.columns[:-1],
+                        out_root=args.save.out_root,
+                        title="PCA_Feature_Importance")
+
+    # Weighted labels
+    sample_weights = compute_sample_weight(
+        class_weight='balanced',
+        y=y_train) if args.sample_weights.strategy == "balanced" else 0
 
     # Training
-    for cfg in args.model_cfgs:
-        if cfg['name'] == 'TabNetClassifier':
-            logger.info(f"Training {cfg['name']}...")
-            clf = TabNetClassifier(n_d=4, n_a=4, device_name=device)
+    # TODO: Make trained model as a dict, and input into ensemble learning
+    clf = train_DLmodels(X_train=X_train,
+                         y_train=y_train,
+                         X_valid=X_valid,
+                         y_valid=y_valid,
+                         X_test=X_test,
+                         y_test=y_test,
+                         model_cfgs=args['training'],
+                         sample_weights=sample_weights,
+                         device=device)
 
-            clf.fit(X_train,
-                    y_train,
-                    weights=sample_weights,
-                    eval_set=[(X_valid, y_valid)],
-                    **cfg['training_params'])
+    weighted_eigenvector_matrix = compute_eigenvector_matrix_with_weighted(
+        eigenvector_matrix, clf.feature_importances_)
+    importance = compute_importance(
+        eigenvector_matrix=weighted_eigenvector_matrix)
+    save_importance(importance=importance,
+                    feature_names=df_train.columns[:-1],
+                    out_root=args.save.out_root,
+                    title="Weighted_PCA_Feature_Importance")
+    # Save eigenvector matrix
+    save_eigenvector_matrix(eigenvector_matrix=weighted_eigenvector_matrix,
+                            feature_names_before_PCA=df_train.columns[:-1],
+                            out_root=args.save.out_root,
+                            title="Weighted_PCA_Eigenvector_Matrix")
 
-            # Testing
-            preds = clf.predict(X_test)
-            probs = clf.predict_proba(X_test)[:, 1]
+    # Ensemble
+    X_trainval = np.concatenate((X_train, X_valid), axis=0)
+    y_trainval = np.concatenate((y_train, y_valid), axis=0)
 
-            # Evaluataion
-            acc = accuracy_score(y_test, preds)
-            auc = roc_auc_score(y_test, probs)
-            cm = confusion_matrix(y_test, preds)
+    best_ensemble = tune_ensemble(
+        X_trainval=X_trainval,
+        y_trainval=y_trainval,
+        X_test=X_test,
+        y_test=y_test,
+        clf=clf,
+        ensemble_learning_cfg=args['ensemble_learning'])
 
-            logger.info("\n Evaluation on Test Set:")
-            logger.info(
-                f"Accuracy: {round(acc, 4)}; ROC AUC: {round(auc, 4)}\n Confusion Matrix:\n{cm}"
-            )
-
-            # exit()
-            # Ensemble
-            model_dict = {
-                'knn': KNeighborsClassifier(),
-                'etc': ExtraTreesClassifier(),
-                # 'xgb':
-                # XGBClassifier(use_label_encoder=False,
-                #   eval_metric='logloss',
-                #   random_state=42)
-            }
-
-            param_grid = {
-                'knn__n_neighbors': [3, 5, 7, 9, 11, 13, 15, 17, 19, 21],
-                'knn__weights': ['uniform', 'distance'],
-                'etc__n_estimators': [100, 200],
-                'etc__max_depth': [None, 10],
-                # 'xgb__n_estimators': [100, 200],
-                # 'xgb__max_depth': [3, 6]
-            }
-
-            X_trainval = np.concatenate((X_train, X_valid), axis=0)
-            y_trainval = np.concatenate((y_train, y_valid), axis=0)
-
-            best_ensemble, _ = grid_search_ensemble(
-                X=X_trainval,
-                y=y_trainval,
-                tabnet_model=clf,
-                model_dict=model_dict,
-                param_grid=param_grid,
-                n_splits=5,
-                scoring='accuracy',  # or 'roc_auc'
-                mode='soft')
-
-            y_pred = best_ensemble.predict(X_test)
-            y_proba = best_ensemble.predict_proba(X_test)[:, 1]  # 若為二分類
-            acc = best_ensemble.score(X_test, y_test)
-            logger.info("Ensemble Accuracy:", acc)
-            logger.info("Ensemble ROC AUC:", roc_auc_score(y_test, y_proba))
-            logger.info("Ensemble Confusion Matrix:",
-                        confusion_matrix(y_test, y_pred))
-
-            # # for name, model in ensemble.estimators:
-            # # acc = accuracy_score(y_test, model.predict(X_test))
-            # # print(f"{name} Accuracy: {acc:.4f}")
-            # exit()
+    # # for name, model in ensemble.estimators:
+    # # acc = accuracy_score(y_test, model.predict(X_test))
+    # # print(f"{name} Accuracy: {acc:.4f}")
+    # exit()
 
 
 def create_args():

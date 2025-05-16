@@ -53,7 +53,6 @@ def impute_missing_values(data):
         # Fill missing values with the calculated median
         data[col] = data[col].fillna(fill_value)
 
-    data = add_combined_features(data)
     return data
 
 
