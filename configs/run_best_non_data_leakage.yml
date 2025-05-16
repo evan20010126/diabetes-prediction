@@ -1,0 +1,62 @@
+save:
+  out_root: ./outputs/WO_Data_Leakage
+
+data_split:
+  train_size: 0.7
+  valid_size: 0.15
+  test_size: 0.15
+
+test_dataset: "" # or "./data/Frankfurt_Hospital_diabetes.csv"
+
+imputation:
+  strategy: "MICE" # "dynamic_imputer" or ""
+  target_cols: ["Glucose", "BloodPressure", "SkinThickness", "Insulin", "BMI"]
+  ignore_cols: ["Outcome"]
+  max_iter: 1000
+
+sampling: "SMOTEENN" # or ""
+
+feature_generation: "combined_features" # or ""
+
+feature_compression:
+  strategy: "PCA" # or ""
+  n_components: 12
+
+sample_weights:
+  strategy: "balanced" # or ""
+
+training:
+  - name: "TabNetClassifier" # or ""
+    params:
+      n_d: 8
+      n_a: 8
+    training_params:
+      batch_size: 128
+      max_epochs: 1000
+      patience: 100
+
+
+# Ensemble (grid search)
+ensemble_learning:
+  strategy: "soft"  # soft or hard or ""
+  weights: [1.0, 1.0, 1.0] # With DL models
+  scoring: "accuracy"
+  n_splits: 5
+
+  models: # knn, etc, xgb
+    - name: 'knn'
+      params:
+      param_grid:
+        n_neighbors: [3, 5, 7, 9, 11, 13, 15, 17, 19, 21]
+        weights: ["uniform", "distance"]
+    - name: 'etc'
+      params:
+      param_grid:
+        n_estimators: [100, 200]
+        max_depth: [null, 10] 
+    # - name: 'xgb'
+    #   params:
+    #     eval_metric: "logloss"
+    #   param_grid:
+    #     n_estimators: [100, 200]
+    #     max_depth: [3, 6]

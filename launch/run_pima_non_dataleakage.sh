@@ -1,0 +1,1 @@
+python scripts/run_wo_dataleakage.py --dataset_path ./data/Pima_Indians_diabetes.csv --config ./configs/run_best_non_data_leakage.yml
